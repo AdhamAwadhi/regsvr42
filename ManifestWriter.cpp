@@ -88,6 +88,7 @@ ManifestWriter::ManifestWriter(const std::wstring& assemblyName, const std::wstr
 	TYPELIB(L"HKEY_CLASSES_ROOT\\TYPELIB\\"),
 	HKCU_SOFTWARE_CLASSES(L"HKEY_CURRENT_USER\\SOFTWARE\\CLASSES\\"),
 	HKLM_SOFTWARE_CLASSES_TYPELIB(L"HKEY_LOCAL_MACHINE\\SOFTWARE\\CLASSES\\TYPELIB\\"),
+	SYS_DEFAULT_TYPELIB(L"{000204EF-0000-0000-C000-000000000046}"),
 	GUID_LENGTH(38) // {00000000-0000-0000-0000-000000000000}
 {
 	m_data << L"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" << std::endl;
@@ -286,8 +287,14 @@ void ManifestWriter::ProcessData(const std::wstring& fileName, const Interceptor
 	std::unordered_map<std::pair<std::wstring, std::wstring>, TypeLib, pair_hash<std::wstring, std::wstring>> typeLibs;
 	std::unordered_map<std::wstring, Interface> interfaces;
 
+	std::wstring localFile = fileName.substr(fileName.rfind(L'\\') + 1);
+	int total = interceptedValues.size();
+	int step = 0;
+
 	while (it != interceptedValues.end())
 	{
+		std::wcout << L"Processing (" << localFile << "): " << ++step << L" of " << total << std::endl;;
+
 		std::wstring path = it->first;
 		std::transform(path.begin(), path.end(), path.begin(), std::towupper);
 		if (path.compare(0, HKCU_SOFTWARE_CLASSES.length(), HKCU_SOFTWARE_CLASSES) == 0)
@@ -409,7 +416,12 @@ void ManifestWriter::ProcessData(const std::wstring& fileName, const Interceptor
 
 	for (auto tlIt = typeLibs.begin(); tlIt != typeLibs.end(); tlIt++)
 	{
-		AddTypeLibrary(tlIt->second);
+		const TypeLib& typeLib = tlIt->second;
+		// IGNORE SYS_DEFAULT_TYPELIB
+		if (typeLib.tlbid.compare(0, SYS_DEFAULT_TYPELIB.length(), SYS_DEFAULT_TYPELIB) == 0)
+			continue;
+
+		AddTypeLibrary(typeLib);
 	}
 
 	AddEndFileSection();
